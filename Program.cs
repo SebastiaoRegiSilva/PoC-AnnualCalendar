@@ -1,67 +1,88 @@
-﻿using ClosedXML.Excel; //https://www.nuget.org/packages/ClosedXML/
-using System.ComponentModel;
+﻿using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Bibliography; //https://www.nuget.org/packages/ClosedXML/
 
-namespace ConsoleTesteData
+
+class Program
 {
-    class Program
+    static async Task Main()
     {
-        static void Main(string[] args)
-        {
-            var monthList = GenerateMonths();
-            GenerateFile(monthList, "AnnualCalendar.xlsx", "Provisorio" );
-        }
+        await GenerateFileAsync("AnnualCalendar.xlsx");
+    }
 
-        static void GenerateFile(ICollection<String> monthList, string fileName, string tets)
+    static async Task GenerateFileAsync(string fileName)
+    {
+        string filePathName = Directory.GetCurrentDirectory() + "\\"+ fileName;
+        if (File.Exists(filePathName))
+            File.Delete(filePathName);
+        
+        // Create the spreadsheet.
+        using (var workbook = new XLWorkbook())
         {
-            string filePathName = System.IO.Directory.GetCurrentDirectory() + "\\"+ fileName;
-            if (File.Exists(filePathName))
-                File.Delete(filePathName);
-
-            using (var workbook = new XLWorkbook())
+            var year = 2024;
+            int countMonth = 1;
+            //Generate months of the year.
+            List<string> monthsOfTheYear = GenerateMonths(year);
+            foreach (var month in monthsOfTheYear)
             {
-                foreach (var month in monthList)
+                //Each month will correspond to a table.
+                var worksheet = workbook.Worksheets.Add(month);
+                // Generate the days of the month.
+                List<DateTime> daysOfMonth = GenerateDaysOfMonth(year, countMonth);
+                int countDay = 1;
+                foreach (var day in daysOfMonth)
                 {
-                    int count = 1;
-                    var worksheet = workbook.Worksheets.Add(month.ElementAt(count));
-                     
-                    count ++;
+                    worksheet.Cells("A" + countDay).Value = $"{day.DayOfWeek}" ;
+                    worksheet.Cells("B" + countDay).Value = $"{day.ToString($"dd/{month}")}";
+                    countDay ++;
                 }
-                workbook.SaveAs(filePathName);
+                
+                countMonth ++;
             }
-        }
-
-        /// <summary>
-        /// Generate months of the year to create tables in the file. xlsx
-        /// </summary>
-        /// <returns>Every month of the year.</returns>
-        static List<String> GenerateMonths()
-        {
-            List<string> retur = new List<string>();
             
-            for (int i = 1; i <= 12; i++)
-            {
-                DateTime firstDayOfTheMonth = new DateTime(DateTime.Now.Year, i, 1);
-                string nameOfTheMonth = firstDayOfTheMonth.ToString("MMMM");
-                retur.Add(nameOfTheMonth);
-            }
-
-            return retur;
+            await Task.Run(() => workbook.SaveAs(filePathName));
         }
+    }
 
-        static string GenerateDaysOfTheWeek(IXLWorksheet worksheet, Dictionary<int, int> yearAndMonthCurrent)
+    /// <summary>
+    /// Generate months of the year to create tables in the file. xlsx
+    /// </summary>
+    /// <param name="year">Current year.</param>
+    /// <returns>Every month of the year.</returns>
+    static List<string> GenerateMonths(int year)
+    {
+        List<string> retur = new List<string>();
+        
+        for (int i = 1; i <= 12; i++)
         {
-            // Preenche os dias da semana
-            for (int dia = 1; dia <= diasNoMes; dia++)
-            {
-                DateTime dataAtualizada = new DateTime(yearAndMonthCurrent.Keys, mes, dia);
+            DateTime firstDayOfTheMonth = new DateTime(year, i, 1);
+            string nameOfTheMonth = firstDayOfTheMonth.ToString("MMMM");
+            // First capital letter of month name.
+            nameOfTheMonth = char.ToUpper(nameOfTheMonth[0]) + nameOfTheMonth[1..];
 
-                // Determina o dia da semana (0 = domingo, 1 = segunda, ..., 6 = sábado)
-                int diaSemana = (int)dataAtualizada.DayOfWeek;
-
-                // Preenche a célula correspondente ao dia
-                worksheet.Cells(mes + 1, diaSemana + 2).Value = dia;
-            }
+            retur.Add(nameOfTheMonth);
         }
 
+        return retur;
+    }
+
+    /// <summary>
+    /// Generate every day of the month.
+    /// </summary>
+    /// <param name="year">Current year.</param>
+    /// <param name="month">Current month.</param>
+    /// <returns>From the beginning to the month.</returns>
+    static List<DateTime> GenerateDaysOfMonth(int year, int month)
+    {
+        var daysOfMonth = new List<DateTime>();
+
+        // Get the first and last day of the month
+        var firstDay = new DateTime(year, month, 1);
+        var lastDay = firstDay.AddMonths(1).AddDays(-1);
+
+        // Add all days of the month to the list
+        for (var currentDate = firstDay; currentDate <= lastDay; currentDate = currentDate.AddDays(1))
+            daysOfMonth.Add(currentDate);
+        
+        return daysOfMonth;
     }
 }
