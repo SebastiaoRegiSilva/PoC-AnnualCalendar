@@ -1,12 +1,11 @@
-﻿using ClosedXML.Excel;
-using DocumentFormat.OpenXml.Bibliography; //https://www.nuget.org/packages/ClosedXML/
-
+﻿using ClosedXML.Excel;//https://www.nuget.org/packages/ClosedXML/
 
 class Program
 {
     static async Task Main()
     {
         await GenerateFileAsync("AnnualCalendar.xlsx");
+        Console.WriteLine("Arquivo disponível!");
     }
 
     static async Task GenerateFileAsync(string fileName)
@@ -29,11 +28,22 @@ class Program
                 // Generate the days of the month.
                 List<DateTime> daysOfMonth = GenerateDaysOfMonth(year, countMonth);
                 int countDay = 1;
+                int lines = 3;
+                worksheet.Range("A1:G1").Merge().Value = $"Calendário anual de leitura familiar!";
+                worksheet.Cell("C2").Value = "Leitura Bíblica";
+                worksheet.Cell("C2").Style.Font.Bold = true;
+                LettersIntoBold(worksheet, "A1:G1");
+                worksheet.Range("A1:G1").Merge().Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
                 foreach (var day in daysOfMonth)
                 {
-                    worksheet.Cells("A" + countDay).Value = $"{day.DayOfWeek}" ;
-                    worksheet.Cells("B" + countDay).Value = $"{day.ToString($"dd/{month}")}";
+                    worksheet.Cells("A" + lines).Value = $"{day.ToString($"dd")}";
+                    worksheet.Cells("A" + lines).Style.Font.Bold = true;
+                    if(day.DayOfWeek == DayOfWeek.Sunday)
+                        worksheet.Cells("B" + lines).Style.Font.Bold = true;
+                    worksheet.Cells("B" + lines).Value = $"{day.DayOfWeek}" ;
                     countDay ++;
+                    lines++;
                 }
                 
                 countMonth ++;
@@ -84,5 +94,15 @@ class Program
             daysOfMonth.Add(currentDate);
         
         return daysOfMonth;
+    }
+
+    /// <summary>
+    /// Highlight bold letters for use in the application. 
+    /// </summary>
+    /// <param name="value">Context of use.</param>
+    /// <param name="address">Address of columns and/or rows.</param>
+    static bool LettersIntoBold(IXLWorksheet value, string address)
+    {
+        return value.Range(address).Merge().Style.Font.Bold = true;
     }
 }
