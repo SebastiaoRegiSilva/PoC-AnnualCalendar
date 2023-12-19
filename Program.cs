@@ -1,4 +1,5 @@
-﻿using ClosedXML.Excel;//https://www.nuget.org/packages/ClosedXML/
+﻿using System.Globalization;
+using ClosedXML.Excel;//https://www.nuget.org/packages/ClosedXML/
 
 class Program
 {
@@ -13,7 +14,6 @@ class Program
         string filePathName = Directory.GetCurrentDirectory() + "\\"+ fileName;
         if (File.Exists(filePathName))
             File.Delete(filePathName);
-        
         // Create the spreadsheet.
         using (var workbook = new XLWorkbook())
         {
@@ -29,19 +29,26 @@ class Program
                 List<DateTime> daysOfMonth = GenerateDaysOfMonth(year, countMonth);
                 int countDay = 1;
                 int lines = 3;
+                // Create functions to distribute the code.
                 worksheet.Range("A1:G1").Merge().Value = $"Calendário anual de leitura familiar!";
-                worksheet.Cell("C2").Value = "Leitura Bíblica";
-                worksheet.Cell("C2").Style.Font.Bold = true;
                 LettersIntoBold(worksheet, "A1:G1");
-                worksheet.Range("A1:G1").Merge().Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Range("A1:G1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Range("D2:E2").Value = "Leitura Bíblica";
+                LettersIntoBold(worksheet, "D2:E2");    
 
                 foreach (var day in daysOfMonth)
                 {
-                    worksheet.Cells("A" + lines).Value = $"{day.ToString($"dd")}";
-                    worksheet.Cells("A" + lines).Style.Font.Bold = true;
+                    worksheet.Cell("A" + lines).Value = GetWeekOfYear(day);
+                    worksheet.Cell("B" + lines).Value = $"{day.ToString($"dd")}";
+                    worksheet.Range("A" + lines, $"B" + lines).Style.Font.Bold = true;
+                    // Lista de semanas para mesclar verticalmente e alinhar centrado. 
+                    worksheet.Range("A" + lines).Merge().Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                    // Column width in pixel.
+                    worksheet.Columns("A","B").Width = 2.5;
+                    worksheet.Column("C").Width = 10;
                     if(day.DayOfWeek == DayOfWeek.Sunday)
-                        worksheet.Cells("B" + lines).Style.Font.Bold = true;
-                    worksheet.Cells("B" + lines).Value = $"{day.DayOfWeek}" ;
+                        worksheet.Cell("C" + lines).Style.Font.Bold = true;
+                    worksheet.Cell("C" + lines).Value = $"{day.DayOfWeek}" ;
                     countDay ++;
                     lines++;
                 }
@@ -104,5 +111,19 @@ class Program
     static bool LettersIntoBold(IXLWorksheet value, string address)
     {
         return value.Range(address).Merge().Style.Font.Bold = true;
+    }
+
+    /// <summary>
+    /// Discover the week of the year.
+    /// </summary>
+    /// <param name="date">Date.</param>
+    static int GetWeekOfYear(DateTime date)
+    {
+        CultureInfo culture = new CultureInfo("pt-BR");
+        Calendar calendar = culture.Calendar;
+        CalendarWeekRule rule = culture.DateTimeFormat.CalendarWeekRule;
+        DayOfWeek firstDayOfWeek = culture.DateTimeFormat.FirstDayOfWeek;
+
+        return calendar.GetWeekOfYear(date, rule, firstDayOfWeek);
     }
 }
