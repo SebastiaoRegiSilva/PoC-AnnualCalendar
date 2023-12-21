@@ -1,4 +1,6 @@
 ﻿using System.Globalization;
+using System.Xml;
+using System.Xml.Serialization;
 using ClosedXML.Excel;//https://www.nuget.org/packages/ClosedXML/
 
 class Program
@@ -7,11 +9,12 @@ class Program
     {
         await GenerateFileAsync("AnnualCalendar.xlsx");
         Console.WriteLine("Arquivo disponível!");
+        TesteLeitura();
     }
 
     static async Task GenerateFileAsync(string fileName)
     {
-        string filePathName = Directory.GetCurrentDirectory() + "\\"+ fileName;
+        string filePathName = Directory.GetCurrentDirectory() + "\\" + fileName;
         if (File.Exists(filePathName))
             File.Delete(filePathName);
         // Create the spreadsheet.
@@ -34,28 +37,30 @@ class Program
                 LettersIntoBold(worksheet, "A1:G1");
                 worksheet.Range("A1:G1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 worksheet.Range("D2:E2").Value = "Leitura Bíblica";
-                LettersIntoBold(worksheet, "D2:E2");    
-
+                LettersIntoBold(worksheet, "D2:E2");
+                List<int> weekOfTheYear = new List<int>();
                 foreach (var day in daysOfMonth)
                 {
                     worksheet.Cell("A" + lines).Value = GetWeekOfYear(day);
+                    weekOfTheYear.Add(GetWeekOfYear(day));
                     worksheet.Cell("B" + lines).Value = $"{day.ToString($"dd")}";
                     worksheet.Range("A" + lines, $"B" + lines).Style.Font.Bold = true;
                     // Lista de semanas para mesclar verticalmente e alinhar centrado. 
                     worksheet.Range("A" + lines).Merge().Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                     // Column width in pixel.
-                    worksheet.Columns("A","B").Width = 2.5;
+                    worksheet.Columns("A", "B").Width = 2.5;
                     worksheet.Column("C").Width = 10;
-                    if(day.DayOfWeek == DayOfWeek.Sunday)
+                    if (day.DayOfWeek == DayOfWeek.Sunday)
                         worksheet.Cell("C" + lines).Style.Font.Bold = true;
-                    worksheet.Cell("C" + lines).Value = $"{day.DayOfWeek}" ;
-                    countDay ++;
+                    worksheet.Cell("C" + lines).Value = $"{day.DayOfWeek}";
+                    countDay++;
                     lines++;
                 }
-                
-                countMonth ++;
+
+                MesclarRepeticoes(worksheet);
+                countMonth++;
             }
-            
+
             await Task.Run(() => workbook.SaveAs(filePathName));
         }
     }
@@ -68,7 +73,7 @@ class Program
     static List<string> GenerateMonths(int year)
     {
         List<string> retur = new List<string>();
-        
+
         for (int i = 1; i <= 12; i++)
         {
             DateTime firstDayOfTheMonth = new DateTime(year, i, 1);
@@ -99,7 +104,7 @@ class Program
         // Add all days of the month to the list
         for (var currentDate = firstDay; currentDate <= lastDay; currentDate = currentDate.AddDays(1))
             daysOfMonth.Add(currentDate);
-        
+
         return daysOfMonth;
     }
 
@@ -125,5 +130,50 @@ class Program
         DayOfWeek firstDayOfWeek = culture.DateTimeFormat.FirstDayOfWeek;
 
         return calendar.GetWeekOfYear(date, rule, firstDayOfWeek);
+    }
+
+    static void MesclarRepeticoes(IXLWorksheet column)
+    {
+        var distinctValues = column.CellsUsed().Select(c => c.GetValue<string>()).Distinct();
+
+        foreach (var value in distinctValues)
+        {
+            var cellsWithSameValue = column.CellsUsed(c => c.GetValue<string>() == value);
+
+            if (cellsWithSameValue.Count() > 1)
+            {
+                var firstCell = cellsWithSameValue.First();
+                var lastCell = cellsWithSameValue.Last();
+
+                var rangeToMerge = column.Range(firstCell.Address, lastCell.Address);
+                rangeToMerge.Style.Border.TopBorder = XLBorderStyleValues.Thin;
+                rangeToMerge.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                rangeToMerge.Style.Border.LeftBorder = XLBorderStyleValues.Thin;
+                rangeToMerge.Style.Border.RightBorder = XLBorderStyleValues.Thin;
+                //rangeToMerge.Merge();
+            }
+        }
+    }
+
+    static void TesteLeitura()
+    {
+        string filePath = @"C:\Users\Willian Silva - Lobo\source\repos\PoC-AnnualCalendar\Useful\resumeBible-min.xml";
+        
+        Console.WriteLine("Reading with Stream");
+        // Create an instance of the XmlSerializer.
+        XmlSerializer serializer = new XmlSerializer(typeof(Biblia));
+
+        // Declare an object variable of the type to be deserialized.
+        Biblia? b;
+        
+        using (Stream reader = new FileStream(filePath, FileMode.Open))
+        {
+            // Call the Deserialize method to restore the object's state.
+            b = (Biblia?)serializer.Deserialize(reader);
+            // v= (Livro?)serializer.Deserialize(reader);
+        }
+
+        // Write out the properties of the object.
+        Console.Write(b);
     }
 }
